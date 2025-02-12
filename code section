@@ -1,0 +1,250 @@
+globals [
+  payoff-matrix
+  payoff_c
+  payoff_m
+  payoff_c_avg
+  payoff_m_avg
+  payoff_c_avg_sub
+  payoff_m_avg_sub
+  fit_mem
+  gen_len
+  pG_1
+  pG_1_avg
+  test_1
+  test_2
+  c
+  lambda
+  G_1_like
+]
+
+breed [conformists conformist]
+breed [mbests mbest]
+
+turtles-own [
+ strategy
+ payoff
+]
+
+conformists-own [
+  strategy
+  payoff
+  mbr
+  pay0
+  pay1
+  pay2
+  nof0
+  nof1
+  nof2
+]
+
+mbests-own [
+  strategy
+  payoff
+  mbr
+  pay0
+  pay1
+  pay2
+  nof0
+  nof1
+  nof2
+]
+
+to setup
+  clear-all
+  ;set payoff-matrix read-from-string payoffs
+  set c 1
+  set lambda 0
+  set G_1_like -2
+  set conf one-of [100 200 300 400 500 600 700 800 900]
+  create-conformists conf [set strategy 0]
+  ask n-of (random (conf + 1)) conformists [set strategy 1]
+  ;ask n-of (random (conf * n-of-players + 1)) conformists [set strategy 2]
+  create-mbests n-of-players - conf [set strategy 0] ;create-mbests (1 - conf - anti-conf - imi) * n-of-players [set strategy 0]
+  ask n-of (random (n-of-players - conf + 1)) mbests [set strategy 1]
+  ;ask n-of (random ((1 - conf - anti-conf - imi) * n-of-players + 1)) mbests [set strategy 2]
+  ask turtles [move-to one-of patches]
+  set mist-prob 0.01
+  set payoff_c_avg []
+  set payoff_m_avg []
+  set fit_mem 20
+  set gen_len 50
+  reset-ticks
+end
+
+to go
+  set pG_1 random 1
+  ask mbests [count-strat]
+  ask mbests [find-mbr] ; n-of ((1 - conf - anti-conf) * n-of-players) players
+  ask mbests [
+    if random-float 1 < prob-revision [playMBR] ; if random-float 1 < mist-prob [playMBR]
+  ] ; n-of ((1 - conf - anti-conf) * n-of-players) players
+  ask conformists [count-strat]
+  ask conformists [
+    if random-float 1 < prob-revision [conform] ;  if random-float 1 < mist-prob [conform]
+  ] ; n-of (conf * n-of-players) players
+  ;;;;;; evolutionary process;;;;;;;;
+  asses-fitness
+  set payoff_c_avg fput payoff_c payoff_c_avg
+  set payoff_m_avg fput payoff_m payoff_m_avg
+  if length payoff_c_avg > fit_mem
+  [set payoff_c_avg_sub sublist payoff_c_avg 0 fit_mem]
+  if length payoff_m_avg > fit_mem
+  [set payoff_m_avg_sub sublist payoff_m_avg 0 fit_mem]
+  if ticks > 0 [if ticks mod gen_len = 0
+  [ifelse mean payoff_c_avg_sub > mean payoff_m_avg_sub
+    [if count mbests > 0
+      [ask n-of 100 mbests [die]]
+     if count conformists < 1000
+      [create-conformists 0.1 * n-of-players [set strategy 0]
+        ask n-of (random (0.1 * n-of-players + 1)) conformists [set strategy 1]]]
+    [if count conformists > 0
+      [ask n-of 100 conformists [die]]
+     if count mbests < 1000
+      [create-mbests 0.1 * n-of-players [set strategy 0]
+        ask n-of (random (0.1 * n-of-players + 1)) mbests [set strategy 1]]]
+  ]
+     if count conformists = 1000
+     [if random-float 1 < 0.05 [
+      ask n-of 100 conformists [die]
+      create-mbests 0.1 * n-of-players [set strategy 0]
+      ask n-of (random (0.1 * n-of-players + 1)) mbests [set strategy 1]]]
+     if count mbests = 1000
+     [if random-float 1 < 0.05 [
+      ask n-of 100 mbests [die]
+      create-conformists 0.1 * n-of-players [set strategy 0]
+      ask n-of (random (0.1 * n-of-players + 1)) conformists [set strategy 1]]]
+  ]
+  test-1
+  test-2
+; procedure to determine hitting time of equilibrium, comment it out when not caring about it (intuitively, the code stops when the system is close by 0.02 points to a NE)
+;  if G_1_like = -1
+;  [ifelse conf = 0
+;  [if count turtles with [strategy = 0] / n-of-players < v_2 + 0.02 and count turtles with [strategy = 0] / n-of-players > v_2 - 0.02 [stop]]
+;    [(ifelse
+;      count turtles with [strategy = 0] / n-of-players < v_2 + 0.02 and count turtles with [strategy = 0] / n-of-players > v_2 - 0.02 [stop]
+;      count turtles with [strategy = 0] / n-of-players < conf / n-of-players + 0.02 and count turtles with [strategy = 0] / n-of-players > conf / n-of-players - 0.02 [stop]
+;      count turtles with [strategy = 0] / n-of-players < (n-of-players - conf) / n-of-players + 0.02 and count turtles with [strategy = 0] / n-of-players > (n-of-players - conf) / n-of-players - 0.02 [stop]
+;      [tick])
+;    ]
+;  ]
+;  if G_1_like = 10
+;  [ifelse conf = 0
+;  [if count turtles with [strategy = 0] / n-of-players < v_1 + 0.02 and count turtles with [strategy = 0] / n-of-players > v_1 - 0.02 [stop]]
+;    [(ifelse
+;      count turtles with [strategy = 0] / n-of-players < v_1 + 0.02 and count turtles with [strategy = 0] / n-of-players > v_1 - 0.02 [stop]
+;      count turtles with [strategy = 0] / n-of-players < conf / n-of-players + 0.02 and count turtles with [strategy = 0] / n-of-players > conf / n-of-players - 0.02 [stop]
+;      count turtles with [strategy = 0] / n-of-players < (n-of-players - conf) / n-of-players + 0.02 and count turtles with [strategy = 0] / n-of-players > (n-of-players - conf) / n-of-players - 0.02 [stop]
+;      [tick])
+;    ]
+;  ]
+  tick
+end
+
+to count-strat
+  set nof0 count turtles with [strategy = 0] ;((count conformists with [strategy = 0]) + (count anticonformists with [strategy = 0]) + (count mbests with [strategy = 0]))
+  set nof1 count turtles with [strategy = 1] ;((count conformists with [strategy = 1]) + (count anticonformists with [strategy = 1]) + (count mbests with [strategy = 1]))
+ ;set nof2 ((count conformists with [strategy = 2]) + (count anticonformists with [strategy = 2]) + (count mbests with [strategy = 2]))
+end
+
+to find-mbr
+  ifelse pG_1 <= G_1_like ;abs(int (ticks / 2) - ticks / 2) = 0
+  [
+    set pay0 ((nof0)/(n-of-players))*((v_1 - c) / 2) + ((nof1)/(n-of-players))*(v_1) ;+ ((nof2)/(n-of-players))*(v_1 / 2 + ((v_1 - c) / 4))
+    set pay1 ((nof0)/(n-of-players))*(0) + ((nof1)/(n-of-players))*(v_1 / 2) ;+ ((nof2)/(n-of-players))*(v_1 / 4)
+  ;set pay2 ((nof0)/(n-of-players))*((v_1 - c) / 4)) + ((nof1)/(n-of-players))*(0.75 * v_1) + ((nof2)/(n-of-players))*(v_1 / 2)
+    set mbr max (list pay0 pay1) ;pay2
+  ]
+  [
+    set pay0 ((nof0)/(n-of-players))*((v_2 - c) / 2) + ((nof1)/(n-of-players))*(v_2) ;+ ((nof2)/(n-of-players))*(v_2 / 2 + ((v_2 - c) / 4))
+    set pay1 ((nof0)/(n-of-players))*(0) + ((nof1)/(n-of-players))*(v_2 / 2) ;+ ((nof2)/(n-of-players))*(v_2 / 4)
+  ;set pay2 ((nof0)/(n-of-players))*((v_2 - c) / 4)) + ((nof1)/(n-of-players))*(0.75 * v_1) + ((nof2)/(n-of-players))*(v_2 / 2)
+    set mbr max (list pay0 pay1) ;pay2
+  ]
+end
+
+to playMBR
+  ifelse random-float 1 > mist-prob
+  [
+    if mbr = pay0 [set strategy 0 set color red]
+    if mbr = pay1 [set strategy 1 set color green]
+  ]
+  [
+    ifelse random-float 1 < 0.5
+    [set strategy 0]
+    [set strategy 1]
+  ]
+  ;if mbr = pay2 [set strategy 2]
+end
+
+to conform
+  ifelse pG_1 <= G_1_like ;abs(int (ticks / 2) - ticks / 2) = 0
+  [
+    ifelse random-float 1 > mist-prob
+    [ifelse lambda * (((nof0)/(n-of-players))*((v_1 - c) / 2) + ((nof1)/(n-of-players))*(v_1)) + (1 - lambda) * ((nof0)/(n-of-players)) > lambda * (((nof0)/(n-of-players))*(0) + ((nof1)/(n-of-players))*(v_1 / 2)) + (1 - lambda) * ((nof1)/(n-of-players))
+      [set strategy 0 set color red]
+      [set strategy 1 set color green]
+    ]
+    [
+     ifelse random-float 1 < 0.5
+    [set strategy 0]
+    [set strategy 1]
+    ]
+  ]
+
+  [
+    ifelse random-float 1 > mist-prob
+    [ifelse lambda * (((nof0)/(n-of-players))*((v_2 - c) / 2) + ((nof1)/(n-of-players))*(v_2)) + (1 - lambda) * ((nof0)/(n-of-players)) > lambda * (((nof0)/(n-of-players))*(0) + ((nof1)/(n-of-players))*(v_2 / 2)) + (1 - lambda) * ((nof1)/(n-of-players))
+      [set strategy 0 set color red]
+      [set strategy 1 set color green]
+    ]
+    [
+     ifelse random-float 1 < 0.5
+    [set strategy 0]
+    [set strategy 1]
+    ]
+  ]
+
+  ;if max (list nof0 nof1 nof2) = nof1
+  ;if max (list nof0 nof1 nof2) = nof2 [set strategy 2]
+end
+
+to asses-fitness
+  ifelse pG_1 <= G_1_like ;abs(int (ticks / 2) - ticks / 2) = 0
+  [ifelse count conformists > 0
+    [
+    set payoff_c (count conformists with [strategy = 0] / count conformists) * ((count turtles with [strategy = 0] / count turtles)*((v_1 - c) / 2) +  (count turtles with [strategy = 1] / count turtles)*(v_1)) + (count conformists with [strategy = 1] / count conformists) * ((count turtles with [strategy = 0] / count turtles)*(0) +  (count turtles with [strategy = 1] / count turtles)*(v_1 / 2))
+    ]
+    [set payoff_c -2]
+    ]
+  [ifelse count conformists > 0
+    [
+    set payoff_c (count conformists with [strategy = 0] / count conformists) * ((count turtles with [strategy = 0] / count turtles)*((v_2 - c) / 2) +  (count turtles with [strategy = 1] / count turtles)*(v_2)) + (count conformists with [strategy = 1] / count conformists) * ((count turtles with [strategy = 0] / count turtles)*(0) +  (count turtles with [strategy = 1] / count turtles)*(v_2 / 2))
+    ]
+    [set payoff_c -2]
+    ]
+  ifelse pG_1 <= G_1_like; abs(int (ticks / 2) - ticks / 2) = 0
+  [ifelse count mbests > 0
+    [
+    set payoff_m (count mbests with [strategy = 0] / count mbests) * ((count turtles with [strategy = 0] / count turtles)*((v_1 - c) / 2) +  (count turtles with [strategy = 1] / count turtles)*(v_1)) + (count mbests with [strategy = 1] / count mbests) * ((count turtles with [strategy = 0] / count turtles)*(0) +  (count turtles with [strategy = 1] / count turtles)*(v_1 / 2)) - kappa
+    ]
+    [set payoff_m -2]
+  ]
+  [ifelse count mbests > 0
+    [
+      set payoff_m (count mbests with [strategy = 0] / count mbests) * ((count turtles with [strategy = 0] / count turtles)*((v_2 - c) / 2) +  (count turtles with [strategy = 1] / count turtles)*(v_2)) + (count mbests with [strategy = 1] / count mbests) * ((count turtles with [strategy = 0] / count turtles)*(0) +  (count turtles with [strategy = 1] / count turtles)*(v_2 / 2)) - kappa
+    ]
+    [set payoff_m -2]
+  ]
+end
+
+to test-1
+  ifelse pG_1 <= G_1_like
+  [set test_1 0]
+  [set test_1 1]
+end
+
+to test-2
+  ifelse pG_1 <= G_1_like
+  [set test_2 0]
+  [set test_2 1]
+end
