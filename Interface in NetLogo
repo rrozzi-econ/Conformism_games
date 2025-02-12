@@ -1,0 +1,10 @@
+button "setup", commands "setup"
+button "go", commands "go"
+button "go forever", commands "go", flag "forever"
+
+slider "mist-prob", minimum "0", increment "0.01", maximum "1"
+slider "n-of-players", minimum "2", increment "1", maximum "10000"
+slider "prob-revision", minimum "0", increment"0.01", maximum "1"
+slider "v_1", minimum "0", increment "0.01", maximum "1"
+slider "v_2", minimum "0", increment "0.01", maximum "1"
+slider "kappa", minimum "0", increment "0.01", maximum "1"
